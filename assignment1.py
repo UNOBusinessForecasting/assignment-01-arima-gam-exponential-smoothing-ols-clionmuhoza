@@ -10,43 +10,40 @@ Original file is located at
 import pandas as pd
 from pygam import LinearGAM, s
 
-# Step 1: Load the training and test datasets
-url = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv"
-url1 = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv"
-df = pd.read_csv(url)
-df_test = pd.read_csv(url1)
+# Load training and test datasets
+url_train = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv"
+url_test = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv"
+df_train = pd.read_csv(url_train)
+df_test = pd.read_csv(url_test)
 
-# Step 2: Process the Timestamp column to extract time-related features
-df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+# Process the Timestamp column
+df_train['Timestamp'] = pd.to_datetime(df_train['Timestamp'])
 df_test['Timestamp'] = pd.to_datetime(df_test['Timestamp'])
 
-for data in [df, df_test]:
-    data['year'] = data['Timestamp'].dt.year
-    data['month'] = data['Timestamp'].dt.month
-    data['day'] = data['Timestamp'].dt.day
-    data['hour'] = data['Timestamp'].dt.hour
-    data['day_of_week'] = data['Timestamp'].dt.dayofweek
+# Extract features from Timestamp
+for df in [df_train, df_test]:
+    df['year'] = df['Timestamp'].dt.year
+    df['month'] = df['Timestamp'].dt.month
+    df['day'] = df['Timestamp'].dt.day
+    df['hour'] = df['Timestamp'].dt.hour
+    df['day_of_week'] = df['Timestamp'].dt.dayofweek
 
-# Step 3: Prepare the training and test data
-# Ensure the columns exist in the correct format
-X_train = df[['hour', 'day_of_week', 'month', 'year']]
-y_train = df['trips']
+# Prepare the training and test data
+X_train = df_train[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
+y_train = df_train['trips'].values  # Convert to NumPy
+X_test = df_test[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
 
-X_test = df_test[['hour', 'day_of_week', 'month', 'year']]
+# Initialize and fit the GAM model
+model = LinearGAM(s(0) + s(1) + s(2) + s(3)).gridsearch(X_train, y_train)
 
-# Step 4: Initialize and fit the model (using GridSearch for better results)
-model = LinearGAM(s(0) + s(1) + s(2) + s(3))  # Splines for hour, day_of_week, month, and year
-modelFit = model.gridsearch(X_train.values, y_train.values)  # Convert to NumPy array for fitting
+# Predict the number of trips
+predictions = model.predict(X_test)
 
-# Step 5: Make predictions on the test set
-pred = modelFit.predict(X_test.values)  # Ensure test set is also converted to NumPy
+# Save predictions to a CSV file
+df_test['trips'] = predictions
+df_test[['Timestamp', 'trips']].to_csv('taxi_trip_forecast_gam.csv', index=False)
 
-# Step 6: Save predictions to the test dataframe and CSV file
-df_test['trips'] = pred
-df_test[['Timestamp', 'trips']].to_csv('taxi_trip_forecast.csv', index=False)
-
-# Print out the first few rows of the test dataframe to verify
-print("Number of predictions:", len(pred))
+# Display predictions
 df_test.head()
 
 !pip install pygam
