@@ -16,50 +16,55 @@ from plotly import subplots
 import plotly.offline as py
 import plotly.graph_objs as go
 
-# Step 1: Load the training data
-data = pd.read_csv("https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv")
+# Prep the dataset
+#   Put this back on one line!!
+data = pd.read_csv( "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv" )
 
 # %%
-# Step 2: Generate x and y matrices
+# Generate x and y matrices
 eqn = """trips ~ -1 + month + day + hour"""
-y, x = pt.dmatrices(eqn, data=data)
+y,x = pt.dmatrices( eqn, data=data )
 
-# Step 3: Initialize and fit the model
-model = LinearGAM(s(0) + s(1) + s(2))  # Splines for month, day, hour
-modelFit = model.gridsearch(np.asarray(x), y)
-
-# %%
-# Step 4: Create partial dependence plots
-titles = ['month', 'day', 'hour']
-
-fig = subplots.make_subplots(rows=1, cols=3, subplot_titles=titles)
-fig['layout'].update(height=800, width=1200, title='pyGAM', showlegend=False)
-
-for i, title in enumerate(titles):
-    XX = modelFit.generate_X_grid(term=i)
-    pdep, confi = modelFit.partial_dependence(term=i, width=.95)
-    trace = go.Scatter(x=XX[:, i], y=pdep, mode='lines', name='Effect')
-    ci1 = go.Scatter(x=XX[:, i], y=confi[:, 0], line=dict(dash='dash', color='grey'), name='95% CI')
-    ci2 = go.Scatter(x=XX[:, i], y=confi[:, 1], line=dict(dash='dash', color='grey'), name='95% CI')
-
-    fig.append_trace(trace, 1, i+1)
-    fig.append_trace(ci1, 1, i+1)
-    fig.append_trace(ci2, 1, i+1)
-
-py.plot(fig)
+# Initialize and fit the model
+model = LinearGAM( s(0) + s(1) + s(2) )
+modelFit = model.gridsearch( np.asarray(x), y )
 
 # %%
-# Step 5: Load the test data and make predictions
-dataNEW = pd.read_csv("https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv")
+# Specify plot titles and shape
+titles = [ 'month', 'day', 'hour' ]
 
-# Check if the test data has the required columns for prediction
-if set(['month', 'day', 'hour']).issubset(dataNEW.columns):
-    pred = modelFit.predict(dataNEW[['month', 'day', 'hour']])
-    # Save predictions to a CSV file
-    pred_df = pd.DataFrame(pred, index=dataNEW.index, columns=['predicted_trips'])
-    pred_df.to_csv('taxi_trip_forecast_gam.csv')
-    print("Predictions saved to 'taxi_trip_forecast_gam.csv'")
-else:
-    print("Test data does not have the required columns for prediction.")
+fig = subplots.make_subplots(rows = 1, cols = 3,
+	subplot_titles = titles )
+fig['layout'].update( height = 800, width = 1200,
+	title = 'pyGAM', showlegend = False )
+
+# %%
+for i, title in enumerate( titles ):
+  XX = modelFit.generate_X_grid( term = i )
+  pdep, confi = modelFit.partial_dependence( term = i, width = .95 )
+  trace = go.Scatter( x = XX[:,i], y = pdep, mode = 'lines', name = 'Effect')
+  ci1 = go.Scatter( x = XX[:,i], y = confi[:,0],
+  	line = dict(dash ='dash', color = 'grey'),
+    	name='95% CI' )
+  ci2 = go.Scatter( x = XX[:,i], y = confi[:,1],
+  	line = dict(dash = 'dash', color = 'grey'),
+    name = '95% CI')
+
+  if i<3:
+    fig.append_trace( trace, 1, i+1 )
+    fig.append_trace( ci1, 1, i+1 )
+    fig.append_trace( ci2, 1, i+1 )
+  else:
+    fig.append_trace( trace, 2, i-2 )
+    fig.append_trace( ci1, 2, i-2 )
+    fig.append_trace( ci2, 2, i-2 )
+
+py.plot( fig )
+
+# %%
+dataNEW = pd.read_csv( "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv" )
+
+# Use the model to predict the number of trips using columns month, day, and hour
+pred = modelFit.predict( dataNEW[['month', 'day', 'hour']] )
 
 !pip install pygam
