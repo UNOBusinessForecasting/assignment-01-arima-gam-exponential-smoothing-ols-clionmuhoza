@@ -10,40 +10,43 @@ Original file is located at
 import pandas as pd
 from pygam import LinearGAM, s
 
-# Load training and test datasets
-url_train = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv"
-url_test = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv"
-df_train = pd.read_csv(url_train)
-df_test = pd.read_csv(url_test)
+# Load the training and test datasets
+url = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv"
+url1 = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv"
+df = pd.read_csv(url)
+df_test = pd.read_csv(url1)
 
 # Process the Timestamp column
-df_train['Timestamp'] = pd.to_datetime(df_train['Timestamp'])
+df['Timestamp'] = pd.to_datetime(df['Timestamp'])
 df_test['Timestamp'] = pd.to_datetime(df_test['Timestamp'])
 
 # Extract features from Timestamp
-for df in [df_train, df_test]:
-    df['year'] = df['Timestamp'].dt.year
-    df['month'] = df['Timestamp'].dt.month
-    df['day'] = df['Timestamp'].dt.day
-    df['hour'] = df['Timestamp'].dt.hour
-    df['day_of_week'] = df['Timestamp'].dt.dayofweek
+for data in [df, df_test]:
+    data['year'] = data['Timestamp'].dt.year
+    data['month'] = data['Timestamp'].dt.month
+    data['day'] = data['Timestamp'].dt.day
+    data['hour'] = data['Timestamp'].dt.hour
+    data['day_of_week'] = data['Timestamp'].dt.dayofweek
 
 # Prepare the training and test data
-X_train = df_train[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
-y_train = df_train['trips'].values  # Convert to NumPy
+X_train = df[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
+y_train = df['trips'].values  # Convert to NumPy
 X_test = df_test[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
 
 # Initialize and fit the GAM model
-model = LinearGAM(s(0) + s(1) + s(2) + s(3)).gridsearch(X_train, y_train)
+model = LinearGAM(s(0) + s(1) + s(2) + s(3))
+modelFit = model.fit(X_train, y_train)
 
 # Predict the number of trips
-predictions = model.predict(X_test)
+pred = modelFit.predict(X_test)
 
-# Save predictions to a CSV file
-df_test['trips'] = predictions
-df_test[['Timestamp', 'trips']].to_csv('taxi_trip_forecast_gam.csv', index=False)
+# Save the predictions in the test dataframe
+df_test['trips'] = pred
 
-# Display predictions
+# Print the number of predictions
+print("Number of predictions:", len(pred))
+
+# Show the first few rows of the test dataframe
 df_test.head()
 
 !pip install pygam
