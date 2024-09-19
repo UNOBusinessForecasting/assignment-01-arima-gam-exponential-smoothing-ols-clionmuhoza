@@ -37,5 +37,3 @@ else:
 
 # Print the last 20 predictions for verification
 print(pred[-20:])
-
-!pip install pygam
