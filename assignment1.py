@@ -8,63 +8,64 @@ Original file is located at
 """
 
 # %%
-from pygam import LinearGAM, s, f, l
+from pygam import LinearGAM, s
 import pandas as pd
 import patsy as pt
 import numpy as np
 from plotly import subplots
 import plotly.offline as py
 import plotly.graph_objs as go
+from sklearn.metrics import mean_squared_error
 
-# Prep the dataset
-#   Put this back on one line!!
-data = pd.read_csv( "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv" )
+# Step 1: Load the training data from the provided URL
+data = pd.read_csv("https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv")
 
-# %%
-# Generate x and y matrices
+# Step 2: Generate x and y matrices using Patsy
 eqn = """trips ~ -1 + month + day + hour"""
-y,x = pt.dmatrices( eqn, data=data )
+y, x = pt.dmatrices(eqn, data=data)
 
-# Initialize and fit the model
-model = LinearGAM( s(0) + s(1) + s(2) )
-modelFit = model.gridsearch( np.asarray(x), y )
+# Step 3: Initialize and fit the model (GAM model with splines for month, day, and hour)
+# Ensure splines for each feature are defined properly
+model = LinearGAM(s(0) + s(1) + s(2))
+modelFit = model.gridsearch(np.asarray(x), y)
 
-# %%
-# Specify plot titles and shape
-titles = [ 'month', 'day', 'hour' ]
+# Step 4: Partial dependence plots for each feature
+titles = ['month', 'day', 'hour']
+fig = subplots.make_subplots(rows=1, cols=3, subplot_titles=titles)
+fig['layout'].update(height=800, width=1200, title='pyGAM', showlegend=False)
 
-fig = subplots.make_subplots(rows = 1, cols = 3,
-	subplot_titles = titles )
-fig['layout'].update( height = 800, width = 1200,
-	title = 'pyGAM', showlegend = False )
+for i, title in enumerate(titles):
+    XX = modelFit.generate_X_grid(term=i)
+    pdep, confi = modelFit.partial_dependence(term=i, width=.95)
+    trace = go.Scatter(x=XX[:, i], y=pdep, mode='lines', name='Effect')
+    ci1 = go.Scatter(x=XX[:, i], y=confi[:, 0], line=dict(dash='dash', color='grey'), name='95% CI')
+    ci2 = go.Scatter(x=XX[:, i], y=confi[:, 1], line=dict(dash='dash', color='grey'), name='95% CI')
 
-# %%
-for i, title in enumerate( titles ):
-  XX = modelFit.generate_X_grid( term = i )
-  pdep, confi = modelFit.partial_dependence( term = i, width = .95 )
-  trace = go.Scatter( x = XX[:,i], y = pdep, mode = 'lines', name = 'Effect')
-  ci1 = go.Scatter( x = XX[:,i], y = confi[:,0],
-  	line = dict(dash ='dash', color = 'grey'),
-    	name='95% CI' )
-  ci2 = go.Scatter( x = XX[:,i], y = confi[:,1],
-  	line = dict(dash = 'dash', color = 'grey'),
-    name = '95% CI')
+    fig.append_trace(trace, 1, i+1)
+    fig.append_trace(ci1, 1, i+1)
+    fig.append_trace(ci2, 1, i+1)
 
-  if i<3:
-    fig.append_trace( trace, 1, i+1 )
-    fig.append_trace( ci1, 1, i+1 )
-    fig.append_trace( ci2, 1, i+1 )
-  else:
-    fig.append_trace( trace, 2, i-2 )
-    fig.append_trace( ci1, 2, i-2 )
-    fig.append_trace( ci2, 2, i-2 )
+py.plot(fig)
 
-py.plot( fig )
+# Step 5: Load the test dataset
+dataNEW = pd.read_csv("https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv")
 
-# %%
-dataNEW = pd.read_csv( "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv" )
+# Step 6: Predict the number of trips using the test dataset
+# Ensure the necessary columns (month, day, hour) exist in the test dataset
+if set(['month', 'day', 'hour']).issubset(dataNEW.columns):
+    pred = modelFit.predict(dataNEW[['month', 'day', 'hour']])
 
-# Use the model to predict the number of trips using columns month, day, and hour
-pred = modelFit.predict( dataNEW[['month', 'day', 'hour']] )
+    # Step 7: Save predictions to a CSV file
+    pred_df = pd.DataFrame(pred, index=dataNEW.index, columns=['predicted_trips'])
+    pred_df.to_csv('taxi_trip_forecast_gam.csv')
+
+    # Optional: Evaluate accuracy using MSE if ground truth is available
+    # Uncomment the following lines if the 'trips' column exists in the test dataset:
+    # mse = mean_squared_error(dataNEW['trips'], pred)
+    # print(f'Mean Squared Error: {mse}')
+
+    print("Predictions saved to 'taxi_trip_forecast_gam.csv'")
+else:
+    print("Test data does not contain the required columns (month, day, hour).")
 
 !pip install pygam
