@@ -7,46 +7,35 @@ Original file is located at
     https://colab.research.google.com/drive/15S_APUQq4xpTqU_DMnAcmIqbdG74qac4
 """
 
-import pandas as pd
 from pygam import LinearGAM, s
+import pandas as pd
 
-# Load the training and test datasets
-url = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_train.csv"
-url1 = "https://github.com/dustywhite7/econ8310-assignment1/raw/main/assignment_data_test.csv"
-df = pd.read_csv(url)
-df_test = pd.read_csv(url1)
+# URLs for the training and test data
+train_url = 'https://raw.githubusercontent.com/dustywhite7/econ8310-assignment1/main/assignment_data_train.csv'
+test_url = 'https://raw.githubusercontent.com/UNOBusinessForecasting/assignment-01-arima-gam-exponential-smoothing-ols-davis011235/refs/heads/main/assignment_data_test.csv'
 
-# Process the Timestamp column
-df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-df_test['Timestamp'] = pd.to_datetime(df_test['Timestamp'])
+# Load the datasets
+data = pd.read_csv(train_url)
+new_data = pd.read_csv(test_url)
 
-# Extract features from Timestamp
-for data in [df, df_test]:
-    data['year'] = data['Timestamp'].dt.year
-    data['month'] = data['Timestamp'].dt.month
-    data['day'] = data['Timestamp'].dt.day
-    data['hour'] = data['Timestamp'].dt.hour
-    data['day_of_week'] = data['Timestamp'].dt.dayofweek
+# Extract only relevant columns for the test dataset
+new_data = new_data[['month', 'day', 'hour']]
 
-# Prepare the training and test data
-X_train = df[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
-y_train = df['trips'].values  # Convert to NumPy
-X_test = df_test[['hour', 'day_of_week', 'month', 'year']].values  # Convert to NumPy
+# Prepare training data: features and target variable
+x = data[['month', 'day', 'hour']].values  # Convert to NumPy array to avoid slicing issues
+y = data['trips'].values  # Convert target variable to NumPy array
 
 # Initialize and fit the GAM model
-model = LinearGAM(s(0) + s(1) + s(2) + s(3))
-modelFit = model.fit(X_train, y_train)
+model = LinearGAM(s(0) + s(1) + s(2))
+modelFit = model.gridsearch(x, y)  # Use gridsearch to find the best smoothing parameters
 
-# Predict the number of trips
-pred = modelFit.predict(X_test)
+# Ensure the model is a LinearGAM instance before making predictions
+if isinstance(model, LinearGAM):
+    pred = modelFit.predict(new_data.values)  # Convert test data to NumPy before prediction
+else:
+    raise ValueError("Model is not a LinearGAM, please check.")
 
-# Save the predictions in the test dataframe
-df_test['trips'] = pred
-
-# Print the number of predictions
-print("Number of predictions:", len(pred))
-
-# Show the first few rows of the test dataframe
-df_test.head()
+# Print the last 20 predictions for verification
+print(pred[-20:])
 
 !pip install pygam
